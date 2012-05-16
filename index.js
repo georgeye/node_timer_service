@@ -5,7 +5,7 @@ var queue_utils = require('./lib/queue_utils');
 
 //initialized logging (winston)
 utils.initLog(config.logFile);
-var METADATA_SEPARATOR = "::", restart_in_process = false, num_errors = 0;
+var restart_in_process = false, num_errors = 0, retry_interval_query = 0;
 var clients = {};
 start();
 
@@ -27,8 +27,11 @@ function start() {
             utils.logDebug("connection closed, just ignore, redis will retry\n");
         });
     }
+    work_client.on("ready", function() {
+        save_retry_value();
+    });
     retry_client.on("ready", function() {
-      get_retry_msg(this);
+        get_retry_msg(this);
     });
     timer_client.on("ready", function () {
          get_timer_msg(this);
@@ -36,20 +39,20 @@ function start() {
 }
 // key is in format of timer:ID
 function process_expired_event(key) {
-    var items = key.split("timer:");
-    if(items.length < 2) return;  // ignore bad key
+    var items = key.split(":");
+    if(items.length < 3) return;  // ignore bad key
     // get meta data associated with the ID
-    clients.work.get(items[1] + ":payload", function(err, reply) {
+    clients.work.get("payload:" + items[3], function(err, reply) {
        if (err) {
            utils.logError("Get error: " + err);
            handle_error();
        } else if(reply != null ){
-           utils.logDebug("Get meta data for " + items[1] + "as :" + reply);
-           push_to_consumer_queue(clients.work, key, reply);
+           utils.logDebug("Get meta data for " + items[3] + "as :" + reply);
+           push_to_consumer_queue(clients.work, key, items[1], reply);
        }
        else {
-           utils.logDebug("find no meta data for " + items[1]);
-           push_to_consumer_queue(clients.work, key, "");
+           utils.logDebug("find no meta data for " + items[3]);
+           push_to_consumer_queue(clients.work, key, items[1], "");
        }
     })
 }
@@ -66,27 +69,38 @@ function restart() {
     }
 }
 
-function push_to_consumer_queue(work_client, key, metadata) {
+function push_to_consumer_queue(work_client, key, service_name,  metadata) {
     var msg = key;
     if(metadata != "") {
-        msg += METADATA_SEPARATOR + metadata;
+        msg += ":payload:" + metadata;
     }
     utils.logInfo("publish event: " + msg + " for consumer\n");
-    work_client.lpush(queue_utils.get_consumer_queue(key), msg);
+    work_client.lpush(queue_utils.get_consumer_queue(service_name), msg);
 }
 // message in format of timer:ID::metadata
 // this functio is to schedule an event timer:ID 
 function schedule_for_retry(work_client, message) {
     var key = message;
-    if(message.indexOf(METADATA_SEPARATOR) >= 0) {
-        var items = message.split(METADATA_SEPARATOR);
+    if(message.indexOf(":payload:") >= 0) {
+        var items = message.split(":payload:");
         if(items.length == 2) {
             key = items[0];
+        }
+        else {
+            return;
         }
     }
     utils.logInfo("schedule " + key + " for retry\n");
     work_client.set(key, "retry");
-    work_client.expire(key, config.default_retry_interval);
+    get_retry_interval(key.split(":")[1], function(err, value) {
+        if(err) {
+            work_client.expire(key, config.default_retry_interval);
+        }
+        else {
+            if(value) work_client.expire(key, value);
+            else work_client.expire(key, config.default_retry_interval);
+        }
+    });
 }
 
 function get_timer_msg(timer_client) {
@@ -95,7 +109,7 @@ function get_timer_msg(timer_client) {
            utils.logError("Get error on blpop: " + err);
            handle_error();
        } else if(reply != null ){
-           if(reply[1].indexOf("timer:") >=0) {
+           if(reply[1].indexOf("timer:") > 0) {
                utils.logDebug("Get timer event: " + reply[1]);
                process_expired_event(reply[1]);
            }
@@ -122,5 +136,34 @@ function handle_error() {
     if(num_errors == 100) { // use restart to slow down the flooding of reconnection in redis code
         num_errors = 0;
         restart();
+    }
+}
+
+function get_retry_interval(service, callback) {
+    key = service + "_retry_interval";
+    retry_interval_query++;
+    if(retry_interval_query == 100) { // to reduce redis query volume
+        retry_interval_queuy = 0;
+        clients.work.get(key, function(err, value) {
+            if(!err) config[key] = value; // save to config
+            callback(err, value);
+        });
+    }
+    else {
+      if(config[key]) {
+          callback(null, config[key]);
+      }
+      else {
+          callback(null, config.default_retry_interval);
+      }
+    }
+}
+        
+function save_retry_value() {
+    for (var key in config) {
+        if(typeof key == "string" && key.indexOf("retry_interval") > 0) {
+            console.log("save key/value of " + key + "/" + config[key] + " to redis");
+            clients.work.set(key, config[key]);
+        }
     }
 }
