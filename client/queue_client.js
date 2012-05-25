@@ -46,6 +46,10 @@ function Queue_Client(server, port, serviceName) {
 
 util.inherits(Queue_Client, EventEmitter);
 
+Queue_Client.prototype.quit = function() {
+  this.redis_client.quit();
+  this.redis_work.quit();
+}
 /** enqueue element
    input: 
    payload - meta data associated with event
