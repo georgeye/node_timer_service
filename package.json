@@ -1,0 +1,15 @@
+{   "name" : "node_timer_service",
+    "version" : "0.0.1",
+    "description" : "node timer/queue service",
+    "author": "George Ye <gye@tigertext.com>",
+    "main": "./index.js",
+    "repository": {
+        "type": "git",
+        "url": "git@github.com:georgeye/node_timer_service.git"
+    }
+    "dependencies": {
+        "winston": "0.4.x",
+        "redis": "0.7.*",
+        "node-uuid": "1.2.0"
+   }
+}
