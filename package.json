@@ -5,11 +5,11 @@
     "main": "./index.js",
     "repository": {
         "type": "git",
-        "url": "git@github.com:georgeye/node_timer_service.git"
+        "url": "http://github.com/georgeye/node_timer_service.git"
     },
     "dependencies": {
-        "winston": "0.4.x",
-        "redis": "0.7.*",
+        "winston": "0.5.11",
+        "redis": "0.7.2",
         "node-uuid": "1.2.0"
    }
 }
