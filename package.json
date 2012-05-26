@@ -6,7 +6,7 @@
     "repository": {
         "type": "git",
         "url": "git@github.com:georgeye/node_timer_service.git"
-    }
+    },
     "dependencies": {
         "winston": "0.4.x",
         "redis": "0.7.*",
