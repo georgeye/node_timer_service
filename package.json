@@ -1,5 +1,5 @@
 {   "name" : "node_timer_service",
-    "version" : "0.0.2",
+    "version" : "0.0.3",
     "description" : "node timer/queue service",
     "author": "George Ye <gye@tigertext.com>",
     "main": "./index.js",
