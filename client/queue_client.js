@@ -62,7 +62,6 @@ Queue_Client.prototype.queue = function(payload) {
 Queue_Client.prototype.queue_with_id = function(id, payload) {
     if(!payload) return "error";
     key = "service:" + this.service + ":timer:" + id + ":payload:" + payload;
-    console.log("xxx enqueue with key=" + key);
     this.redis_client.set("payload:" + id, payload);
     this.redis_client.lpush(queue_utils.get_consumer_queue(this.service), key);
     return id;
@@ -96,16 +95,16 @@ Queue_Client.prototype.next = function(callback) {
 */
 Queue_Client.prototype.complete = function(id) {
     var self = this;
-    console.log('going to remove element with id=' + id);
+    //console.log('going to remove element with id=' + id);
     this.redis_work.get("payload:" + id, function(err, reply) {
         if (!err) {
             if(reply != null) {
-                console.log('removing with payload\n');
+                //console.log('removing with payload\n');
                 self.redis_work.lrem(queue_utils.get_consumer_queue(self.service), 0, "service:" + self.service + 
                                      ":timer:" + id + ":payload:" + reply);
             }
             else {
-                console.log('removing without payload\n');
+                //console.log('removing without payload\n');
                 self.redis_work.lrem(queue_utils.get_consumer_queue(), 0, "service:" + self.service + 
                                      ":timer:" + id);
             }
