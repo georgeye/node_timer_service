@@ -59,12 +59,20 @@ Queue_Client.prototype.queue = function(payload) {
     return this.queue_with_id(uuid(), payload);
 }
 
-Queue_Client.prototype.queue_with_id = function(id, payload) {
+Queue_Client.prototype.queue_with_service = function(service, payload) {
+    return this.queue_with_id_service(uuid(), service, payload);
+}
+
+Queue_Client.prototype.queue_with_id_service = function(id, service, payload) {
     if(!payload) return "error";
-    key = "service:" + this.service + ":timer:" + id + ":payload:" + payload;
+    key = "service:" + service + ":timer:" + id + ":payload:" + payload;
     this.redis_client.set("payload:" + id, payload);
-    this.redis_client.lpush(queue_utils.get_consumer_queue(this.service), key);
+    this.redis_client.lpush(queue_utils.get_consumer_queue(service), key);
     return id;
+}
+    
+Queue_Client.prototype.queue_with_id = function(id, payload) {
+    return this.queue_with_id_service(id, this.service, payload);
 }
 
 /**
