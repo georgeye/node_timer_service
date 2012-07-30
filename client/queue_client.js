@@ -28,10 +28,10 @@ function Queue_Client(server, port, serviceName) {
         }
     });
     redis_client.on("error", function(err) {
-        self.emit('error');
+        self.emit('error', err);
     });
     redis_work.on("error", function(err) {
-        self.emit('error');
+        self.emit('error', err);
     });
     redis_work.on("ready", function() {
         self.ready_count++;
