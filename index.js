@@ -5,7 +5,7 @@ var queue_utils = require('./lib/queue_utils');
 
 //initialized logging (winston)
 utils.initLog(config.logFile, config.logLevel);
-var restart_in_process = false, num_errors = 0, retry_interval_query = 0;
+var restart_in_process = false, num_errors = 0, retry_interval_query = 0, stats = {'expired_events': 0};
 var clients = {};
 start();
 
@@ -39,6 +39,7 @@ function start() {
 }
 // key is in format of timer:ID
 function process_expired_event(key) {
+    update_stats();
     var items = key.split(":");
     if(items.length < 3) return;  // ignore bad key
     // get meta data associated with the ID
@@ -166,4 +167,14 @@ function save_retry_value() {
             clients.work.set(key, config[key]);
         }
     }
+}
+process.on('SIGUSR2', function() {
+    utils.logInfo("stats expired_events=" + stats.expired_events);
+    //console.log("stats expired_events=" + stats.expired_events);
+});
+
+function update_stats() {
+    stats.expired_events++;
+    if(stats.expired_events == 999999) 
+        stats.expired_events = 0;
 }
