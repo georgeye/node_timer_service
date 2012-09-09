@@ -113,7 +113,7 @@ Queue_Client.prototype.complete = function(id) {
             }
             else {
                 //console.log('removing without payload\n');
-                self.redis_work.lrem(queue_utils.get_consumer_queue(), 0, "service:" + self.service + 
+                self.redis_work.lrem(queue_utils.get_consumer_queue(self.service), 0, "service:" + self.service + 
                                      ":timer:" + id);
             }
         }
