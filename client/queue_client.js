@@ -79,6 +79,7 @@ Queue_Client.prototype.queue_with_id = function(id, payload) {
     callback = function(err, id, payload)
 */
 Queue_Client.prototype.next = function(callback) {
+  self = this;
     this.redis_client.brpoplpush(queue_utils.get_consumer_queue(this.service), queue_utils.get_retry_queue(), 0, function(err, reply) {
         if(err) callback(err, null, null);
         else {
@@ -90,7 +91,17 @@ Queue_Client.prototype.next = function(callback) {
             }
             var tokens = key.split(":");
             if(tokens.length == 4) {
-                callback(err, tokens[3], payload);
+                self.redis_client.get(tokens[3] + ":status", function(err, res)
+                {
+                  if(!err && res == "done") {
+                    self.complete(tokens[3]);
+                    //console.log("ignore completed event: " + "service:" + self.service + ":timer:" + tokens[3]);
+                    self.next(callback);
+                  }
+                  else {
+                    callback(err, tokens[3], payload);
+                  }
+                });
             }
             else {
                 callback("error", "", "");
@@ -103,17 +114,24 @@ Queue_Client.prototype.next = function(callback) {
 */
 Queue_Client.prototype.complete = function(id) {
     var self = this;
-    //console.log('going to remove element with id=' + id);
+    //set status for the event, so that won't be rescheduled in the future
+    self.redis_work.set(id + ":status", "done");
+    self.redis_work.expire(id + ":status", 60*60); //auto cleanup in one hour
     this.redis_work.get("payload:" + id, function(err, reply) {
         if (!err) {
             if(reply != null) {
                 //console.log('removing with payload\n');
                 self.redis_work.lrem(queue_utils.get_consumer_queue(self.service), 0, "service:" + self.service + 
                                      ":timer:" + id + ":payload:" + reply);
+                //also remove from retry queue if there is one
+                self.redis_work.lrem(queue_utils.get_retry_queue(), 0, "service:" + self.service +
+                                     ":timer:" + id + ":payload:" + reply);
             }
             else {
                 //console.log('removing without payload\n');
                 self.redis_work.lrem(queue_utils.get_consumer_queue(self.service), 0, "service:" + self.service + 
+                                     ":timer:" + id);
+                self.redis_work.lrem(queue_utils.get_retry_queue(), 0, "service:" + self.service + 
                                      ":timer:" + id);
             }
         }
@@ -122,6 +140,7 @@ Queue_Client.prototype.complete = function(id) {
         }
     });
     this.redis_work.del("service:" + this.service + ":timer:" + id);
+    this.redis_work.del("service:" + this.service + ":timer:" + id + ":num_retry");
     this.redis_work.del("payload:" + id);
 }
 
