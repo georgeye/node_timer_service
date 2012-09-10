@@ -4,9 +4,11 @@ var config = require('./config');
 var queue_utils = require('./lib/queue_utils');
 
 //initialized logging (winston)
-utils.initLog(config.logFile, config.logLevel);
+//utils.initLog(config.logFile, config.logLevel);
 var restart_in_process = false, num_errors = 0, retry_interval_query = 0, stats = {'expired_events': 0};
 var clients = {};
+var MAX_RETRY = 5;
+if(config.max_retry) MAX_RETRY = config.max_retry;
 start();
 
 function start() {
@@ -82,6 +84,7 @@ function push_to_consumer_queue(work_client, key, service_name,  metadata) {
 // this functio is to schedule an event timer:ID 
 function schedule_for_retry(work_client, message) {
     var key = message;
+    var id = "";
     if(message.indexOf(":payload:") >= 0) {
         var items = message.split(":payload:");
         if(items.length == 2) {
@@ -91,15 +94,41 @@ function schedule_for_retry(work_client, message) {
             return;
         }
     }
-    utils.logInfo("schedule " + key + " for retry\n");
-    work_client.set(key, "retry");
-    get_retry_interval(key.split(":")[1], function(err, value) {
-        if(err) {
-            work_client.expire(key, config.default_retry_interval);
-        }
-        else {
-            if(value) work_client.expire(key, value);
-            else work_client.expire(key, config.default_retry_interval);
+    var tokens = key.split(":timer:");
+    if(tokens.length == 2) id = tokens[1];
+    else return;
+    work_client.get(id + ":status", function(err, value) {
+      if(!err && value == "done") {
+        utils.logWarn("This event was completed, no more retry");
+      }
+      else if(!err) {
+        work_client.get(key + ":num_retry", function(err, value) {
+          if(err) {
+              utils.logError("Failed to get num_retry for:" + key + ", err=" + err);
+          }
+          else if(value && parseInt(value) > MAX_RETRY) {
+              utils.logError("Exceeded max retry count, ignore event:" + key);
+              work_client.del(key);
+              work_client.del(key + ":num_retry");
+              work_client.del("payload:" + id);
+          }
+          else {
+              utils.logInfo("schedule " + key + " for retry\n");
+              //schedle for retry
+              work_client.set(key, "retry");
+              new_retry = value ? parseInt(value) + 1 : 1;
+              work_client.set(key + ":num_retry", new_retry);
+              get_retry_interval(key.split(":")[1], function(err, value) {
+                if(err) {
+                  work_client.expire(key, config.default_retry_interval*Math.pow(2, new_retry - 1));
+                }
+                else {
+                  if(value) {work_client.expire(key, value*Math.pow(2, new_retry-1));}
+                  else {work_client.expire(key, config.default_retry_interval*Math.pow(2, new_retry - 1));}
+                }
+              });
+            }
+          });
         }
     });
 }
