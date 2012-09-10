@@ -4,7 +4,7 @@ var config = require('./config');
 var queue_utils = require('./lib/queue_utils');
 
 //initialized logging (winston)
-//utils.initLog(config.logFile, config.logLevel);
+utils.initLog(config.logFile, config.logLevel);
 var restart_in_process = false, num_errors = 0, retry_interval_query = 0, stats = {'expired_events': 0};
 var clients = {};
 var MAX_RETRY = 5;
