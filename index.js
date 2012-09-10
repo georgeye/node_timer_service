@@ -99,7 +99,7 @@ function schedule_for_retry(work_client, message) {
     else return;
     work_client.get(id + ":status", function(err, value) {
       if(!err && value == "done") {
-        utils.logWarn("This event was completed, no more retry");
+        utils.logDebug("This event was completed, no more retry");
       }
       else if(!err) {
         work_client.get(key + ":num_retry", function(err, value) {
