@@ -91,7 +91,7 @@ Queue_Client.prototype.next = function(callback) {
             }
             var tokens = key.split(":");
             if(tokens.length == 4) {
-                self.redis_client.get(tokens[3] + ":status", function(err, res)
+                self.redis_work.get(tokens[3] + ":status", function(err, res)
                 {
                   if(!err && res == "done") {
                     self.complete(tokens[3]);
