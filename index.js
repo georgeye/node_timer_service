@@ -123,7 +123,7 @@ function schedule_for_retry(work_client, message) {
                   work_client.expire(key, config.default_retry_interval*Math.pow(2, new_retry - 1));
                 }
                 else {
-                  if(value) {work_client.expire(key, value*Math.pow(2, new_retry-1));}
+                  if(value2) {work_client.expire(key, value*Math.pow(2, new_retry-1));}
                   else {work_client.expire(key, config.default_retry_interval*Math.pow(2, new_retry - 1));}
                 }
               });
