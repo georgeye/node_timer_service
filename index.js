@@ -102,28 +102,28 @@ function schedule_for_retry(work_client, message) {
         utils.logDebug("This event was completed, no more retry");
       }
       else if(!err) {
-        work_client.get(key + ":num_retry", function(err, value) {
+        work_client.get(key + ":num_retry", function(err, value1) {
           if(err) {
               utils.logError("Failed to get num_retry for:" + key + ", err=" + err);
           }
-          else if(value && parseInt(value) > MAX_RETRY) {
+          else if(value1 && parseInt(value1) > MAX_RETRY) {
               utils.logError("Exceeded max retry count, ignore event:" + key);
               work_client.del(key);
               work_client.del(key + ":num_retry");
               work_client.del("payload:" + id);
           }
           else {
-              utils.logInfo("schedule " + key + " for retry\n");
+              utils.logInfo("schedule " + key + " for retry, value=" + value1);
               //schedle for retry
               work_client.set(key, "retry");
-              new_retry = value ? parseInt(value) + 1 : 1;
+              new_retry = value1 ? parseInt(value1) + 1 : 1;
               work_client.set(key + ":num_retry", new_retry);
-              get_retry_interval(key.split(":")[1], function(err, value) {
+              get_retry_interval(key.split(":")[1], function(err, value2) {
                 if(err) {
                   work_client.expire(key, config.default_retry_interval*Math.pow(2, new_retry - 1));
                 }
                 else {
-                  if(value) {work_client.expire(key, value*Math.pow(2, new_retry-1));}
+                  if(value2) {work_client.expire(key, value2*Math.pow(2, new_retry-1));}
                   else {work_client.expire(key, config.default_retry_interval*Math.pow(2, new_retry - 1));}
                 }
               });
