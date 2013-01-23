@@ -116,7 +116,7 @@ Queue_Client.prototype.complete = function(id) {
     var self = this;
     //set status for the event, so that won't be rescheduled in the future
     self.redis_work.set(id + ":status", "done");
-    self.redis_work.expire(id + ":status", 60*60); //auto cleanup in one hour
+    self.redis_work.expire(id + ":status", 30*60); //auto cleanup in half an hour
     this.redis_work.get("payload:" + id, function(err, reply) {
         if (!err) {
             if(reply != null) {
