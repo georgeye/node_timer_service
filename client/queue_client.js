@@ -66,8 +66,8 @@ Queue_Client.prototype.queue_with_service = function(service, payload) {
 Queue_Client.prototype.queue_with_id_service = function(id, service, payload) {
     if(!payload) return "error";
     key = "service:" + service + ":timer:" + id + ":payload:" + payload;
-    this.redis_client.set("payload:" + id, payload);
-    this.redis_client.lpush(queue_utils.get_consumer_queue(service), key);
+    this.redis_work.set("payload:" + id, payload);
+    this.redis_work.lpush(queue_utils.get_consumer_queue(service), key);
     return id;
 }
     
