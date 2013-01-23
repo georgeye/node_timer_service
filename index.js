@@ -4,7 +4,7 @@ var config = require('./config');
 var queue_utils = require('./lib/queue_utils');
 
 //initialized logging (winston)
-utils.initLog(config.logFile, config.logLevel);
+//utils.initLog(config.logFile, config.logLevel);
 var restart_in_process = false, num_errors = 0, retry_interval_query = 0, stats = {'expired_events': 0};
 var clients = {};
 var MAX_RETRY = 5;
@@ -97,6 +97,11 @@ function schedule_for_retry(work_client, message) {
     var tokens = key.split(":timer:");
     if(tokens.length == 2) id = tokens[1];
     else return;
+    var serviceName = key.split(":")[1];
+    if(config.no_retry_services.indexOf(serviceName) != -1) {
+      utils.logInfo("no retry for service:" + serviceName);
+      return;
+    }
     work_client.get(id + ":status", function(err, value) {
       if(!err && value == "done") {
         utils.logDebug("This event was completed, no more retry");
