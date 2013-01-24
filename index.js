@@ -99,7 +99,7 @@ function schedule_for_retry(work_client, message) {
     else return;
     var serviceName = key.split(":")[1];
     if(config.no_retry_services.indexOf(serviceName) != -1) {
-      utils.logInfo("no retry for service:" + serviceName);
+      //utils.logInfo("no retry for service:" + serviceName);
       return;
     }
     work_client.get(id + ":status", function(err, value) {
