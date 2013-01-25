@@ -113,23 +113,39 @@ function schedule_for_retry(work_client, message) {
           }
           else if(value1 && parseInt(value1) > MAX_RETRY) {
               utils.logError("Exceeded max retry count, ignore event:" + key);
-              work_client.del(key);
-              work_client.del(key + ":num_retry");
-              work_client.del("payload:" + id);
+              work_client.multi()
+              .del(key)
+              .del(key + ":num_retry")
+              .del("payload:" + id)
+              .exec();
           }
           else {
               utils.logInfo("schedule " + key + " for retry, value=" + value1);
-              //schedle for retry
-              work_client.set(key, "retry");
               new_retry = value1 ? parseInt(value1) + 1 : 1;
-              work_client.set(key + ":num_retry", new_retry);
               get_retry_interval(key.split(":")[1], function(err, value2) {
                 if(err) {
-                  work_client.expire(key, config.default_retry_interval*Math.pow(2, new_retry - 1));
+                   //schedle for retry
+                   work_client.multi()
+                   .set(key, "retry")
+                   .set(key + ":num_retry", new_retry)
+                   .expire(key, config.default_retry_interval*Math.pow(2, new_retry - 1))
+                   .exec();
                 }
                 else {
-                  if(value2) {work_client.expire(key, value2*Math.pow(2, new_retry-1));}
-                  else {work_client.expire(key, config.default_retry_interval*Math.pow(2, new_retry - 1));}
+                  if(value2) {
+                    work_client.multi()
+                    .set(key, "retry")
+                    .set(key + ":num_retry", new_retry)
+                    .expire(key, value2*Math.pow(2, new_retry-1))
+                    .exec();
+                  }
+                  else {
+                    work_client.multi()
+                    .set(key, "retry")
+                    .set(key + ":num_retry", new_retry)
+                    .expire(key, config.default_retry_interval*Math.pow(2, new_retry - 1))
+                    .exec();
+                  }
                 }
               });
             }
