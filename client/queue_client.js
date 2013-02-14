@@ -117,28 +117,6 @@ Queue_Client.prototype.complete = function(id) {
     //set status for the event, so that won't be rescheduled in the future
     self.redis_work.set(id + ":status", "done");
     self.redis_work.expire(id + ":status", 30*60); //auto cleanup in half an hour
-    this.redis_work.get("payload:" + id, function(err, reply) {
-        if (!err) {
-            if(reply != null) {
-                //console.log('removing with payload\n');
-                self.redis_work.lrem(queue_utils.get_consumer_queue(self.service), 0, "service:" + self.service + 
-                                     ":timer:" + id + ":payload:" + reply);
-                //also remove from retry queue if there is one
-                self.redis_work.lrem(queue_utils.get_retry_queue(), 0, "service:" + self.service +
-                                     ":timer:" + id + ":payload:" + reply);
-            }
-            else {
-                //console.log('removing without payload\n');
-                self.redis_work.lrem(queue_utils.get_consumer_queue(self.service), 0, "service:" + self.service + 
-                                     ":timer:" + id);
-                self.redis_work.lrem(queue_utils.get_retry_queue(), 0, "service:" + self.service + 
-                                     ":timer:" + id);
-            }
-        }
-        else {
-            console.log("got error" + err);
-        }
-    });
     this.redis_work.del("service:" + this.service + ":timer:" + id);
     this.redis_work.del("service:" + this.service + ":timer:" + id + ":num_retry");
     this.redis_work.del("payload:" + id);
