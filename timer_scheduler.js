@@ -3,7 +3,7 @@ var config = require("./config");
 var utils = require('./utils');
 
 var MAX_EXPIRE_ENTRY = 100;
-var DEFAULT_TIMER_INTERVAL = 10;
+var DEFAULT_TIMER_INTERVAL = 20;
 var queue_daily = true, queue_by_hour = false;
 if(config.queue_daily == false) queue_daily = false;
 if(config.queue_by_hour) queue_by_hour = true;
