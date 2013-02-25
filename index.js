@@ -1,13 +1,17 @@
 var utils = require('./utils');
+var spawn = require('child_process').spawn;
 var redis = require("redis");
 var config = require('./config');
 var queue_utils = require('./lib/queue_utils');
-
+var Timer_Client = require('./client/timer_client').Timer_Client;
 //initialized logging (winston)
 utils.initLog(config.logFile, config.logLevel);
 var restart_in_process = false, num_errors = 0, retry_interval_query = 0, stats = {'expired_events': 0};
+var timer = new Timer_Client(config.redis_server_name, config.redis_server_port, "someservice", config.queue_by_hour);
 var clients = {};
 var MAX_RETRY = 5;
+var child=undefined;
+var stopping = false;
 if(config.max_retry) MAX_RETRY = config.max_retry;
 start();
 
@@ -38,7 +42,20 @@ function start() {
     timer_client.on("ready", function () {
          get_timer_msg(this);
     });
+    setInterval(function() {
+        if(child == undefined && !stopping) {
+            create_child();
+        }
+    }, 1000);
 }
+
+/* handle sigterm and shutdown */
+process.on('SIGTERM', function() {
+  stopping = true;
+  utils.logInfo("Recevied sigterm, going to shutdown in 500 ms\n");
+  setTimeout(function() { utils.logInfo("kill child"); child.kill(); process.exit(0); }, 500);
+});
+
 // key is in format of timer:ID
 function process_expired_event(key) {
     update_stats();
@@ -114,7 +131,6 @@ function schedule_for_retry(work_client, message) {
           else if(value1 && parseInt(value1) > MAX_RETRY) {
               utils.logError("Exceeded max retry count, ignore event:" + key);
               work_client.multi()
-              .del(key)
               .del(key + ":num_retry")
               .del("payload:" + id)
               .exec();
@@ -125,26 +141,17 @@ function schedule_for_retry(work_client, message) {
               get_retry_interval(key.split(":")[1], function(err, value2) {
                 if(err) {
                    //schedle for retry
-                   work_client.multi()
-                   .set(key, "retry")
-                   .set(key + ":num_retry", new_retry)
-                   .expire(key, config.default_retry_interval*Math.pow(2, new_retry - 1))
-                   .exec();
+                   timer.create_timer_with_key(key, config.default_retry_interval*Math.pow(2, new_retry - 1), "");
+                   work_client.set(key + ":num_retry", new_retry);
                 }
                 else {
                   if(value2) {
-                    work_client.multi()
-                    .set(key, "retry")
-                    .set(key + ":num_retry", new_retry)
-                    .expire(key, value2*Math.pow(2, new_retry-1))
-                    .exec();
+                    timer.create_timer_with_key(key, value2*Math.pow(2, new_retry - 1), "");
+                    work_client.set(key + ":num_retry", new_retry);
                   }
                   else {
-                    work_client.multi()
-                    .set(key, "retry")
-                    .set(key + ":num_retry", new_retry)
-                    .expire(key, config.default_retry_interval*Math.pow(2, new_retry - 1))
-                    .exec();
+                    timer.create_timer_with_key(key, config.default_retry_interval*Math.pow(2, new_retry - 1), "");
+                    work_client.set(key + ":num_retry", new_retry);
                   }
                 }
               });
@@ -227,4 +234,13 @@ function update_stats() {
     stats.expired_events++;
     if(stats.expired_events == 999999) 
         stats.expired_events = 0;
+}
+
+function create_child() {
+    utils.logInfo("spawn child process for timer_scheduler.js");
+    child = spawn('node', [__dirname+'/timer_scheduler.js']);
+    child.on('exit', function (code) {
+      child = undefined;
+      utils.logInfo('Child exited: '+code);
+    });
 }

@@ -10,7 +10,7 @@ var EventEmitter = require('events').EventEmitter,
       serverName: server name for this timer client
 */
 
-function Timer_Client(server, port, serviceName) {
+function Timer_Client(server, port, serviceName, queue_by_hour) {
     this.server = server;
     this.port = port;
     this.service = serviceName;
@@ -23,6 +23,8 @@ function Timer_Client(server, port, serviceName) {
     redis_client.on("error", function(err) {
         self.emit('error');
     });
+    this.queue_by_hour = false;
+    if(queue_by_hour) this.queue_by_hour = true;
     this.redis_client = redis_client;
 }
 
@@ -38,13 +40,17 @@ Timer_Client.prototype.create_timer = function(duration, data) {
     var id = uuid();
     return this.create_timer_with_id(id, duration,  data);
 }
-
 Timer_Client.prototype.create_timer_with_id = function(id, duration, data) {
-    if (duration <= 0) return "error";
-    if(id == "") return "error";
     var key = composeKey(this.service, id, "");
-    this.redis_client.set(key, 1);
-    this.redis_client.expire(key, duration);
+    return this.create_timer_with_key(key, duration, data);
+}
+
+Timer_Client.prototype.create_timer_with_key = function(key, duration, data) {
+    if (duration <= 0) return "error";
+    var id = get_timer_id(key);
+    var timer_meta = get_timer_meta(duration, this.queue_by_hour);
+    this.redis_client.zadd(timer_meta.qname, timer_meta.score, key);
+    this.redis_client.set("timer_queue:" + key, timer_meta.qname);
     if(data != "") {
         this.redis_client.set("payload:" + id, data);
     }
@@ -54,18 +60,15 @@ Timer_Client.prototype.create_timer_with_id = function(id, duration, data) {
 // cancel timer with id
 Timer_Client.prototype.cancel = function(id) {
     var self = this;
-    this.redis_client.get("payload:" + id, function(err, reply) {
-        if (!err) {
-            if(reply != null) {
-                self.redis_client.lrem(queue_utils.get_consumer_queue(self.service), 0, composeKey(self.service, id, reply));
-            }
-            else {
-                self.redis_client.lrem(queue_utils.get_consumer_queue(self.service), 0, composeKey(self.service, id, ""));
-            }
-        }
-    });
-    this.redis_client.del(composeKey(self.service, id, ""));
+    var key = composeKey(self.service, id, "");
     this.redis_client.del("payload:" + id);
+    self.redis_client.get("timer_queue:" + key, function(err, res)
+        {
+            if(!err) {
+                self.redis_client.zrem(res, key); 
+            }
+        });
+    self.redis_client.del("timer_queue:" + key);
 }
 function composeKey(service, id, meta) {
     if(meta == "") {
@@ -74,5 +77,23 @@ function composeKey(service, id, meta) {
     else {
         return "service:" + service + ":timer:" + id + ":payload:" + meta;
     }
+}
+
+function get_timer_meta(duration, queue_by_hour) {
+    var d = new Date();
+    if(queue_by_hour) {
+        return {qname: "timer_" + (d.getUTCMonth() + 1) + d.getUTCDate() + d.getUTCHours(), score: parseInt(d.getTime()/1000, 10) + duration};
+    }
+    else {
+        return {qname: "timer_" + (d.getUTCMonth() + 1) + d.getUTCDate(), score: parseInt(d.getTime()/1000, 10) + duration};
+    }
+}
+
+function get_timer_id(key) {
+    var index = key.indexOf("timer:");
+    if(index > 0) {
+      return key.substr(index + 7);
+    }
+    else return key;
 }
 exports.Timer_Client = Timer_Client;
