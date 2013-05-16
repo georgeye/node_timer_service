@@ -117,9 +117,17 @@ Queue_Client.prototype.complete = function(id) {
     //set status for the event, so that won't be rescheduled in the future
     self.redis_work.set(id + ":status", "done");
     self.redis_work.expire(id + ":status", 30*60); //auto cleanup in half an hour
-    this.redis_work.del("service:" + this.service + ":timer:" + id);
-    this.redis_work.del("service:" + this.service + ":timer:" + id + ":num_retry");
+    var key = "service:" + this.service + ":timer:" + id;
+    this.redis_work.del(key);
+    this.redis_work.del(key + ":num_retry");
     this.redis_work.del("payload:" + id);
+    self.redis_work.get("timer_queue:" + key, function(err, res)
+    {
+        if(!err) {
+            self.redis_work.zrem(res, key);
+        }
+    });
+    self.redis_work.del("timer_queue:" + key);
 }
 
 /* report error on handling event, expect to schedule this event again in the interval future
