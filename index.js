@@ -100,6 +100,7 @@ function push_to_consumer_queue(work_client, key, service_name,  metadata) {
 // message in format of timer:ID::metadata
 // this functio is to schedule an event timer:ID 
 function schedule_for_retry(work_client, message) {
+    var retry_interval = config.default_retry_interval;
     var key = message;
     var id = "";
     if(message.indexOf(":payload:") >= 0) {
@@ -128,7 +129,7 @@ function schedule_for_retry(work_client, message) {
           if(err) {
               utils.logError("Failed to get num_retry for:" + key + ", err=" + err);
           }
-          else if(value1 && parseInt(value1) > MAX_RETRY) {
+          else if(value1 && parseInt(value1) > MAX_RETRY && !is_forever_retry_service(serviceName)) {
               utils.logError("Exceeded max retry count, ignore event:" + key);
               work_client.multi()
               .del(key + ":num_retry")
@@ -141,16 +142,19 @@ function schedule_for_retry(work_client, message) {
               get_retry_interval(key.split(":")[1], function(err, value2) {
                 if(err) {
                    //schedle for retry
-                   timer.create_timer_with_key(key, config.default_retry_interval*Math.pow(2, new_retry - 1), "");
+                   retry_interval = cap_with_max_value(config.default_retry_interval*Math.pow(2, new_retry - 1));
+                   timer.create_timer_with_key(key, retry_interval, "");
                    work_client.set(key + ":num_retry", new_retry);
                 }
                 else {
                   if(value2) {
-                    timer.create_timer_with_key(key, value2*Math.pow(2, new_retry - 1), "");
+                    retry_interval = value2*Math.pow(2, new_retry - 1);
+                    timer.create_timer_with_key(key, retry_interval, "");
                     work_client.set(key + ":num_retry", new_retry);
                   }
                   else {
-                    timer.create_timer_with_key(key, config.default_retry_interval*Math.pow(2, new_retry - 1), "");
+                    retry_interval = config.default_retry_interval*Math.pow(2, new_retry - 1);
+                    timer.create_timer_with_key(key, retry_interval, "");
                     work_client.set(key + ":num_retry", new_retry);
                   }
                 }
@@ -243,4 +247,15 @@ function create_child() {
       child = undefined;
       utils.logInfo('Child exited: '+code);
     });
+}
+
+function is_forever_retry_service(serviceName) {
+    config.forever_retry_services.indexOf(serviceName) != -1;
+}
+
+function cap_with_max_value(interval) {
+    var rc = interval;
+    if(rc > config.max_retry_interval)
+      rc = config.max_retry_interval;
+    return rc;
 }
