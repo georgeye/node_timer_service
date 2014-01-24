@@ -18,7 +18,7 @@ start();
 function start() {
     utils.logInfo("Starting ...\n");
     var timer_client = redis.createClient(config.redis_server_port, config.redis_server_name);
-    var work_client = redis.createClient(config.redis_server_port, config.redis_server_name);
+    var work_client = redis.createClient(config.redis_server_port, config.redis_server_name, {return_buffers: true});
     var retry_client = redis.createClient(config.redis_server_port, config.redis_server_name);
     clients.timer = timer_client;
     clients.work = work_client;
@@ -90,9 +90,10 @@ function restart() {
 }
 
 function push_to_consumer_queue(work_client, key, service_name,  metadata) {
-    var msg = key;
+    var msg = new Buffer(key);
     if(metadata != "") {
-        msg += ":payload:" + metadata;
+        msg = Buffer.concat([msg, new Buffer(":payload:")]);
+        msg = Buffer.concat([msg, new Buffer(metadata)]);
     }
     utils.logInfo("publish event: " + msg + " for consumer\n");
     work_client.lpush(queue_utils.get_consumer_queue(service_name), msg);
