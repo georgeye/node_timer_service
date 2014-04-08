@@ -135,6 +135,7 @@ function schedule_for_retry(work_client, message) {
               work_client.multi()
               .del(key + ":num_retry")
               .del("payload:" + id)
+              .del("timer_queue:" + key)
               .exec();
           }
           else {
