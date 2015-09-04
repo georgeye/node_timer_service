@@ -245,7 +245,8 @@ function update_stats() {
 function create_child() {
     utils.logInfo("spawn child process for timer_scheduler.js");
     child = spawn('node', [__dirname+'/timer_scheduler.js']);
-    child.on('exit', function (code) {
+    child.stderr.on('data', function (data) {}); 
+    child.on('close', function (code) {
       child = undefined;
       utils.logInfo('Child exited: '+code);
     });
