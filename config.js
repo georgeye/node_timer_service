@@ -1,6 +1,6 @@
 var config = {};
 
-config.logFile = '/var/log/node-timer/trace.log';
+config.logFile = 'trace.log';
 config.logLevel = 4;
 config.redis_server_port = 6379;
 config.redis_server_name = '127.0.0.1';
