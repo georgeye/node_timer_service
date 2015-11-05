@@ -34,3 +34,6 @@ exports.logError = function(log) {
   }
 }
 
+exports.is_forever_retry_service = function(config, serviceName) {
+  return config.forever_retry_services.indexOf(serviceName) != -1;
+}

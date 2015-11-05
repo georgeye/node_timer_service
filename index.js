@@ -130,7 +130,7 @@ function schedule_for_retry(work_client, message) {
           if(err) {
               utils.logError("Failed to get num_retry for:" + key + ", err=" + err);
           }
-          else if(value1 && parseInt(value1) > MAX_RETRY && !is_forever_retry_service(serviceName)) {
+          else if(value1 && parseInt(value1) > MAX_RETRY && !utils.is_forever_retry_service(config, serviceName)) {
               utils.logError("Exceeded max retry count, ignore event:" + key);
               work_client.multi()
               .del(key + ":num_retry")
@@ -250,10 +250,6 @@ function create_child() {
       child = undefined;
       utils.logInfo('Child exited: '+code);
     });
-}
-
-function is_forever_retry_service(serviceName) {
-    config.forever_retry_services.indexOf(serviceName) != -1;
 }
 
 function cap_with_max_value(interval) {
