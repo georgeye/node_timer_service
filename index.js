@@ -252,7 +252,7 @@ function create_child() {
 }
 
 function is_forever_retry_service(serviceName) {
-    config.forever_retry_services.indexOf(serviceName) != -1;
+    return config.forever_retry_services.indexOf(serviceName) != -1;
 }
 
 function cap_with_max_value(interval) {
