@@ -5,7 +5,7 @@ var config = require('./config');
 var queue_utils = require('./lib/queue_utils');
 var Timer_Client = require('./client/timer_client').Timer_Client;
 //initialized logging (winston)
-utils.initLog(config.logFile, config.logLevel);
+//utils.initLog(config.logFile, config.logLevel);
 var restart_in_process = false, num_errors = 0, retry_interval_query = 0, stats = {'expired_events': 0};
 var timer = new Timer_Client(config.redis_server_name, config.redis_server_port, "someservice", config.queue_by_hour);
 var clients = {};
@@ -130,7 +130,7 @@ function schedule_for_retry(work_client, message) {
           if(err) {
               utils.logError("Failed to get num_retry for:" + key + ", err=" + err);
           }
-          else if(value1 && parseInt(value1) > MAX_RETRY && !is_forever_retry_service(serviceName)) {
+          else if(value1 && parseInt(value1) > MAX_RETRY && !utils.is_forever_retry_service(config, serviceName)) {
               utils.logError("Exceeded max retry count, ignore event:" + key);
               work_client.multi()
               .del(key + ":num_retry")
@@ -249,10 +249,6 @@ function create_child() {
       child = undefined;
       utils.logInfo('Child exited: '+code);
     });
-}
-
-function is_forever_retry_service(serviceName) {
-    return config.forever_retry_services.indexOf(serviceName) != -1;
 }
 
 function cap_with_max_value(interval) {
