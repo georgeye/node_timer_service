@@ -5,7 +5,7 @@ var config = require('./config');
 var queue_utils = require('./lib/queue_utils');
 var Timer_Client = require('./client/timer_client').Timer_Client;
 //initialized logging (winston)
-//utils.initLog(config.logFile, config.logLevel);
+utils.initLog(config.logFile, config.logLevel);
 var restart_in_process = false, num_errors = 0, retry_interval_query = 0, stats = {'expired_events': 0};
 var timer = new Timer_Client(config.redis_server_name, config.redis_server_port, "someservice", config.queue_by_hour);
 var clients = {};
