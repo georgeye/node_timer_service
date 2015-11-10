@@ -2,7 +2,7 @@ var winston = require('winston');
 
 var logLevel = 5;
 exports.initLog = function(name, logLevel_) {
-  winston.add(winston.transports.File, { filename: name, maxsize: 5000000, maxFiles: 10});
+  winston.add(winston.transports.File, { filename: name, maxsize: 5000000, maxFiles: 10, level: 'debug'});
   winston.remove(winston.transports.Console);
   logLevel = logLevel_;
 }
