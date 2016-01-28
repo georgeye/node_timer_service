@@ -9,7 +9,7 @@ utils.initLog(config.logFile, config.logLevel);
 var restart_in_process = false, num_errors = 0, retry_interval_query = 0, stats = {'expired_events': 0};
 var timer = new Timer_Client(config.redis_server_name, config.redis_server_port, "someservice", config.queue_by_hour);
 var clients = {};
-var MAX_RETRY = 5;
+var MAX_RETRY = config.max_retry;
 var child=undefined;
 var stopping = false;
 if(config.max_retry) MAX_RETRY = config.max_retry;
