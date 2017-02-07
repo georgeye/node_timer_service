@@ -2,6 +2,7 @@ var redis = require("redis");
 var config = require("./config");
 var utils = require('./utils');
 
+utils.initLog(config.logFile, config.logLevel);
 var MAX_EXPIRE_ENTRY = 100;
 var DEFAULT_TIMER_INTERVAL = 20;
 var queue_daily = true, queue_by_hour = false;
@@ -14,7 +15,12 @@ function handle_timeout() {
   var queues = get_queues(queue_daily, queue_by_hour);
   for(var i = 0; i < queues.length; i++) {
     utils.logDebug("going to fetch expired event from " + queues[i]);
-    expire_events(queues[i]);
+    if(work_client.command_queue_length > 10 || work_client.offline_queue_length > 10) {
+      utils.logWarn("too many pending requests, slow down retry");
+    }
+    else {
+      expire_events(queues[i]);
+    }
   }
 }
 
