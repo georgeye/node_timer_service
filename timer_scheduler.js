@@ -12,13 +12,13 @@ var work_client = redis.createClient(config.redis_server_port, config.redis_serv
 
 setInterval(function() { handle_timeout(); }, DEFAULT_TIMER_INTERVAL);
 function handle_timeout() {
-  var queues = get_queues(queue_daily, queue_by_hour);
-  for(var i = 0; i < queues.length; i++) {
-    utils.logDebug("going to fetch expired event from " + queues[i]);
-    if(work_client.command_queue_length > 10 || work_client.offline_queue_length > 10) {
-      utils.logWarn("too many pending requests, slow down retry");
-    }
-    else {
+  if(work_client.command_queue_length > 10 || work_client.offline_queue_length > 10) {
+    utils.logWarn("too many pending requests, slow down retry");
+  }
+  else {
+    var queues = get_queues(queue_daily, queue_by_hour);
+    for(var i = 0; i < queues.length; i++) {
+      utils.logDebug("going to fetch expired event from " + queues[i]);
       expire_events(queues[i]);
     }
   }
